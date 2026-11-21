@@ -150,3 +150,25 @@ describe("choux de Bruxelles", () => {
     ]);
   });
 });
+
+/** 0100 : poudre d'amandes, distincte des amandes entières. */
+describe("poudre d'amandes", () => {
+  it("les alias de la poudre y mènent, « amandes » reste aux entières", async () => {
+    const { rows } = await pool.query(
+      `select v.alias, i.slug from (values ('Poudre d''amande'), ('Amandes en poudre'),
+         ('Amandes')) as v(alias)
+       join public.ingredient_aliases a on a.alias_normalized = public.normalize_alias(v.alias)
+       join public.ingredients i on i.id = a.ingredient_id order by v.alias`,
+    );
+    expect(rows.map((r) => [r.alias, r.slug])).toEqual([
+      ["Amandes", "amande"],
+      ["Amandes en poudre", "poudre-amande"],
+      ["Poudre d'amande", "poudre-amande"],
+    ]);
+    const al = await pool.query(
+      `select a.allergen_code from public.ingredient_allergens a
+       join public.ingredients i on i.id = a.ingredient_id where i.slug = 'poudre-amande'`,
+    );
+    expect(al.rows.map((r) => r.allergen_code)).toEqual(["tree_nuts"]);
+  });
+});
