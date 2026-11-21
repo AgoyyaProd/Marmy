@@ -194,3 +194,24 @@ describe("purée de légumes surgelée", () => {
     ]);
   });
 });
+
+/** 0102 : poisson pané surgelé. */
+describe("poisson pané", () => {
+  it("surgelé, poisson et gluten, exclu des régimes végétariens", async () => {
+    const { rows } = await pool.query(
+      `select i.is_frozen, n.ciqual_code,
+         array(select a.allergen_code from public.ingredient_allergens a where a.ingredient_id = i.id order by 1) as allergens,
+         array(select d.diet_code from public.ingredient_diet_conflicts d where d.ingredient_id = i.id order by 1) as diets
+       from public.ingredients i join public.ingredient_nutrition n on n.ingredient_id = i.id
+       where i.slug = 'poisson-pane'`,
+    );
+    expect(rows).toEqual([
+      {
+        is_frozen: true,
+        ciqual_code: 26029,
+        allergens: ["fish", "gluten"],
+        diets: ["vegan", "vegetarian"],
+      },
+    ]);
+  });
+});
