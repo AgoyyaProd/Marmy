@@ -172,3 +172,25 @@ describe("poudre d'amandes", () => {
     expect(al.rows.map((r) => r.allergen_code)).toEqual(["tree_nuts"]);
   });
 });
+
+/** 0101 : purée de légumes surgelée. */
+describe("purée de légumes surgelée", () => {
+  it("surgelée, légume, lait signalé, nutrition Ciqual", async () => {
+    const { rows } = await pool.query(
+      `select i.is_frozen, i.category, n.ciqual_code,
+         array(select a.allergen_code from public.ingredient_allergens a where a.ingredient_id = i.id) as allergens,
+         array(select d.diet_code from public.ingredient_diet_conflicts d where d.ingredient_id = i.id) as diets
+       from public.ingredients i join public.ingredient_nutrition n on n.ingredient_id = i.id
+       where i.slug = 'puree-legumes-surgelee'`,
+    );
+    expect(rows).toEqual([
+      {
+        is_frozen: true,
+        category: "legumes",
+        ciqual_code: 20258,
+        allergens: ["milk"],
+        diets: ["vegan"],
+      },
+    ]);
+  });
+});
