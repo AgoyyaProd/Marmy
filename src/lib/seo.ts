@@ -20,6 +20,22 @@ export const OPEN_GRAPH_BASE = {
   siteName: SITE.name,
 };
 
+/** Déploiement Vercel autre que la production (aperçus de branche) : à tenir hors index. */
+export function isPreviewDeployment(vercelEnv: string | undefined): boolean {
+  return vercelEnv !== undefined && vercelEnv !== "production";
+}
+
+/** Méta de vérification des outils pour webmasters, seulement pour les codes fournis. */
+export function searchVerification(codes: { google?: string; bing?: string }) {
+  const google = codes.google?.trim();
+  const bing = codes.bing?.trim();
+  if (!google && !bing) return undefined;
+  return {
+    ...(google ? { google } : {}),
+    ...(bing ? { other: { "msvalidate.01": bing } } : {}),
+  };
+}
+
 /** Adresse absolue à partir d'un chemin du site. */
 export function absoluteUrl(base: string, path: string): string {
   return new URL(path, base.endsWith("/") ? base : `${base}/`).toString();
@@ -56,10 +72,29 @@ export interface RecipeForSchema {
   vegetarian: boolean;
   vegan: boolean;
   /** Valeurs par portion, seulement quand l'estimation est fiable. */
-  nutrition: { kcal: number; proteinsG: number; carbsG: number; fatG: number } | null;
+  nutrition: {
+    kcal: number;
+    proteinsG: number;
+    carbsG: number;
+    fatG: number;
+    /** Valeurs complémentaires, omises si non mesurées. */
+    sugarsG?: number | null;
+    saturatedFatG?: number | null;
+    fiberG?: number | null;
+    saltG?: number | null;
+  } | null;
   /** Photo (adresse absolue) ou null. */
   image: string | null;
+  /** Date de publication (validation) et de dernière modification, ISO. */
+  datePublished?: string | null;
+  dateModified?: string | null;
 }
+
+/** Règlement UE 1169/2011 : sel = sodium × 2,5, soit 400 mg de sodium par gramme de sel. */
+const SODIUM_MG_PER_G_SALT = 400;
+
+const grams = (v: number | null | undefined) =>
+  v === null || v === undefined ? undefined : `${Math.round(v)} g`;
 
 const CATEGORY_TAGS = ["plat", "soupe", "salade", "dessert", "petit-dejeuner"];
 
@@ -80,6 +115,8 @@ export function recipeJsonLd(r: RecipeForSchema, url: string) {
     url,
     inLanguage: "fr-FR",
     author: { "@type": "Organization", name: SITE.name },
+    datePublished: r.datePublished ? r.datePublished.slice(0, 10) : undefined,
+    dateModified: r.dateModified ? r.dateModified.slice(0, 10) : undefined,
     recipeYield: `${r.servings} portion${r.servings > 1 ? "s" : ""}`,
     prepTime: isoDuration(r.prepMinutes) ?? undefined,
     cookTime: isoDuration(r.cookMinutes) ?? undefined,
@@ -94,16 +131,55 @@ export function recipeJsonLd(r: RecipeForSchema, url: string) {
       text,
     })),
     nutrition: r.nutrition
-      ? {
+      ? strip({
           "@type": "NutritionInformation",
           servingSize: "1 portion",
           calories: `${Math.round(r.nutrition.kcal)} kcal`,
-          proteinContent: `${Math.round(r.nutrition.proteinsG)} g`,
-          carbohydrateContent: `${Math.round(r.nutrition.carbsG)} g`,
-          fatContent: `${Math.round(r.nutrition.fatG)} g`,
-        }
+          proteinContent: grams(r.nutrition.proteinsG),
+          carbohydrateContent: grams(r.nutrition.carbsG),
+          sugarContent: grams(r.nutrition.sugarsG),
+          fatContent: grams(r.nutrition.fatG),
+          saturatedFatContent: grams(r.nutrition.saturatedFatG),
+          fiberContent: grams(r.nutrition.fiberG),
+          sodiumContent:
+            r.nutrition.saltG === null || r.nutrition.saltG === undefined
+              ? undefined
+              : `${Math.round(r.nutrition.saltG * SODIUM_MG_PER_G_SALT)} mg`,
+        })
       : undefined,
   });
+}
+
+/** Fil d'Ariane (BreadcrumbList) : chemins du site, du plus général au plus précis. */
+export function breadcrumbJsonLd(base: string, items: readonly { name: string; path: string }[]) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: items.map((it, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      name: it.name,
+      item: absoluteUrl(base, it.path),
+    })),
+  };
+}
+
+/** Liste des recettes d'une page de catalogue (ItemList, résumé à liens vers chaque recette). */
+export function recipeListJsonLd(
+  base: string,
+  recipes: readonly { slug: string; title: string }[],
+) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    numberOfItems: recipes.length,
+    itemListElement: recipes.map((r, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      url: absoluteUrl(base, `/recipes/${r.slug}`),
+      name: r.title,
+    })),
+  };
 }
 
 /** Site et marque, pour la page d'accueil (recherche dans le catalogue depuis Google). */

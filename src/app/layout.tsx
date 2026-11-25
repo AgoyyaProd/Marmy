@@ -6,12 +6,15 @@ import { SiteAnalytics } from "@/components/analytics/site-analytics";
 import { ViewportFix } from "@/components/pwa/viewport-fix";
 import { ServiceWorkerSetup } from "@/components/pwa/service-worker";
 import { siteUrlFromEnv } from "@/lib/env";
-import { SITE } from "@/lib/seo";
+import { isPreviewDeployment, searchVerification, SITE } from "@/lib/seo";
 
 const TYPEKIT_CSS = "https://use.typekit.net/pks6mdg.css";
 
 /** Adresse publique, lue au build (les liens absolus des métadonnées en dépendent). */
 const SITE_URL = siteUrlFromEnv();
+
+/** Déploiement d'aperçu Vercel : jamais indexé (doublon du site de production). */
+const PREVIEW = isPreviewDeployment(process.env.VERCEL_ENV);
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -33,6 +36,13 @@ export const metadata: Metadata = {
   creator: SITE.name,
   publisher: SITE.name,
   formatDetection: { telephone: false, address: false, email: false },
+  ...(PREVIEW ? { robots: { index: false, follow: false } } : {}),
+  // Validation Google Search Console et Bing Webmaster Tools (méta « vérification »),
+  // si les codes sont fournis dans les variables d'environnement.
+  verification: searchVerification({
+    google: process.env.GOOGLE_SITE_VERIFICATION,
+    bing: process.env.BING_SITE_VERIFICATION,
+  }),
   openGraph: {
     type: "website",
     locale: SITE.locale,

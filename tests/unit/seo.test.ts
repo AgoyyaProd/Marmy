@@ -2,10 +2,14 @@ import { describe, expect, it } from "vitest";
 import {
   absoluteUrl,
   analyticsUrl,
+  breadcrumbJsonLd,
   isoDuration,
+  isPreviewDeployment,
   jsonLdScript,
+  recipeListJsonLd,
   metaDescription,
   recipeJsonLd,
+  searchVerification,
 } from "@/lib/seo";
 
 describe("référencement", () => {
@@ -64,6 +68,90 @@ describe("référencement", () => {
       { "@type": "HowToStep", position: 1, text: "Rincer." },
       { "@type": "HowToStep", position: 2, text: "Cuire." },
     ]);
+  });
+
+  it("recette : dates, nutrition complète, sodium tiré du sel (sel = sodium × 2,5)", () => {
+    const ld = recipeJsonLd(
+      {
+        slug: "dahl",
+        title: "Dahl",
+        description: "Un dahl.",
+        servings: 2,
+        prepMinutes: 10,
+        cookMinutes: 20,
+        restMinutes: 0,
+        tags: [],
+        tagLabels: {},
+        ingredients: [],
+        steps: [],
+        vegetarian: true,
+        vegan: false,
+        nutrition: {
+          kcal: 500,
+          proteinsG: 20,
+          carbsG: 60,
+          fatG: 15,
+          sugarsG: 6.4,
+          saturatedFatG: 3.2,
+          fiberG: 9.6,
+          saltG: 1.25,
+        },
+        image: null,
+        datePublished: "2026-10-04T08:00:00+00:00",
+        dateModified: "2026-11-18T10:00:00+00:00",
+      },
+      "https://marmy.fr/recipes/dahl",
+    );
+    expect(ld).toMatchObject({
+      datePublished: "2026-10-04",
+      dateModified: "2026-11-18",
+      suitableForDiet: ["https://schema.org/VegetarianDiet"],
+      nutrition: {
+        sugarContent: "6 g",
+        saturatedFatContent: "3 g",
+        fiberContent: "10 g",
+        sodiumContent: "500 mg",
+      },
+    });
+  });
+
+  it("fil d'Ariane et liste de recettes", () => {
+    expect(
+      breadcrumbJsonLd("https://marmy.fr", [
+        { name: "Accueil", path: "/" },
+        { name: "Recettes", path: "/recipes" },
+        { name: "Dahl", path: "/recipes/dahl" },
+      ]),
+    ).toEqual({
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "Accueil", item: "https://marmy.fr/" },
+        { "@type": "ListItem", position: 2, name: "Recettes", item: "https://marmy.fr/recipes" },
+        { "@type": "ListItem", position: 3, name: "Dahl", item: "https://marmy.fr/recipes/dahl" },
+      ],
+    });
+    const list = recipeListJsonLd("https://marmy.fr", [
+      { slug: "dahl", title: "Dahl" },
+      { slug: "chili", title: "Chili" },
+    ]);
+    expect(list).toMatchObject({
+      "@type": "ItemList",
+      numberOfItems: 2,
+      itemListElement: [
+        { "@type": "ListItem", position: 1, url: "https://marmy.fr/recipes/dahl", name: "Dahl" },
+        { "@type": "ListItem", position: 2, url: "https://marmy.fr/recipes/chili", name: "Chili" },
+      ],
+    });
+  });
+
+  it("aperçus hors index, codes de vérification seulement s'ils existent", () => {
+    expect(isPreviewDeployment("production")).toBe(false);
+    expect(isPreviewDeployment(undefined)).toBe(false);
+    expect(isPreviewDeployment("preview")).toBe(true);
+    expect(searchVerification({})).toBeUndefined();
+    expect(searchVerification({ google: " abc " })).toEqual({ google: "abc" });
+    expect(searchVerification({ bing: "XYZ" })).toEqual({ other: { "msvalidate.01": "XYZ" } });
   });
 
   it("le JSON injecté ne peut pas fermer la balise script", () => {

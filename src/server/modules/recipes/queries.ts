@@ -531,6 +531,9 @@ export interface RecipeDetail {
   description: string | null;
   /** Conseils de conservation (réfrigérateur, congélation, réchauffage). */
   storageNote: string | null;
+  /** Publication (validation, à défaut création) et dernière modification, ISO. */
+  publishedAt: string;
+  updatedAt: string;
   servings: number;
   prepMinutes: number;
   /** Attente sans travail : levée, marinade, réfrigération. */
@@ -583,7 +586,7 @@ export async function getRecipe(slug: string): Promise<RecipeDetail | null> {
   const { data: r, error } = await supabase
     .from("recipes")
     .select(
-      "id, slug, title, description, storage_note, servings, prep_minutes, rest_minutes, cook_minutes, tags, recipe_ingredients (ingredient_id, quantity, unit_code, quantity_base, dimension, is_optional, preparation_note, position, ingredients (slug, name, density_g_per_ml, piece_weight_g, ingredient_nutrition (kcal, proteins_g, carbs_g, sugars_g, fat_g, saturated_fat_g, fiber_g, salt_g))), recipe_steps (position, instruction), recipe_equipment (equipment_code)",
+      "id, slug, title, description, storage_note, servings, prep_minutes, rest_minutes, cook_minutes, tags, validated_at, created_at, updated_at, recipe_ingredients (ingredient_id, quantity, unit_code, quantity_base, dimension, is_optional, preparation_note, position, ingredients (slug, name, density_g_per_ml, piece_weight_g, ingredient_nutrition (kcal, proteins_g, carbs_g, sugars_g, fat_g, saturated_fat_g, fiber_g, salt_g))), recipe_steps (position, instruction), recipe_equipment (equipment_code)",
     )
     .eq("slug", slug)
     .maybeSingle();
@@ -639,6 +642,8 @@ export async function getRecipe(slug: string): Promise<RecipeDetail | null> {
     restMinutes: r.rest_minutes,
     cookMinutes: r.cook_minutes,
     tags: r.tags,
+    publishedAt: r.validated_at ?? r.created_at,
+    updatedAt: r.updated_at,
     ingredients: lines.map((l) => ({
       ingredientId: l.ingredient_id,
       name: l.ingredients?.name ?? "?",

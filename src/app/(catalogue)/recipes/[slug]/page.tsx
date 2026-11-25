@@ -29,7 +29,7 @@ import { getRecipe, RECIPE_TAG_LABEL, type RecipeDetail } from "@/server/modules
 import { getRecipeSeo, siteUrl } from "@/server/modules/seo/queries";
 import { JsonLd } from "@/components/seo/json-ld";
 import { ingredientQuantity } from "@/lib/format-quantity";
-import { absoluteUrl, OPEN_GRAPH_BASE, recipeJsonLd } from "@/lib/seo";
+import { absoluteUrl, breadcrumbJsonLd, OPEN_GRAPH_BASE, recipeJsonLd } from "@/lib/seo";
 import { recipeImage } from "@/lib/images";
 
 /** Titre, description et photo de partage propres à chaque recette. */
@@ -83,6 +83,13 @@ async function RecipeContent({ params }: Pick<PageProps<"/recipes/[slug]">, "par
   return (
     <KitchenProvider baseServings={recipe.servings}>
       <JsonLd data={recipeSchema(recipe)} />
+      <JsonLd
+        data={breadcrumbJsonLd(siteUrl(), [
+          { name: "Accueil", path: "/" },
+          { name: "Recettes", path: "/recipes" },
+          { name: recipe.title, path: `/recipes/${recipe.slug}` },
+        ])}
+      />
       <article className="flex flex-col gap-10 lg:gap-14">
         <nav aria-label="Fil d'Ariane" className="text-muted -mb-6 text-sm max-lg:hidden">
           <ol className="flex flex-wrap items-center gap-1.5">
@@ -341,9 +348,16 @@ function recipeSchema(recipe: RecipeDetail) {
             proteinsG: n.proteins.value,
             carbsG: n.carbs.value,
             fatG: n.fat.value,
+            // Total minimal (un ingrédient sans valeur) : omis plutôt que sous-estimé.
+            sugarsG: n.sugars.partial ? null : n.sugars.value,
+            saturatedFatG: n.saturatedFat.partial ? null : n.saturatedFat.value,
+            fiberG: n.fiber.partial ? null : n.fiber.value,
+            saltG: n.salt.partial ? null : n.salt.value,
           }
         : null,
       image: photo ? absoluteUrl(base, photo) : null,
+      datePublished: recipe.publishedAt,
+      dateModified: recipe.updatedAt,
     },
     absoluteUrl(base, `/recipes/${recipe.slug}`),
   );

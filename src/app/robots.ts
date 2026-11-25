@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { absoluteUrl } from "@/lib/seo";
+import { absoluteUrl, isPreviewDeployment } from "@/lib/seo";
 import { siteUrl } from "@/server/modules/seo/queries";
 
 /**
@@ -8,6 +8,10 @@ import { siteUrl } from "@/server/modules/seo/queries";
  */
 export default function robots(): MetadataRoute.Robots {
   const base = siteUrl();
+  // Aperçu de branche : rien à indexer (doublon du site de production).
+  if (isPreviewDeployment(process.env.VERCEL_ENV)) {
+    return { rules: [{ userAgent: "*", disallow: "/" }] };
+  }
   return {
     rules: [
       {

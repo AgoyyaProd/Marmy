@@ -17,6 +17,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       const photo = recipeImage(r.slug);
       return {
         url: absoluteUrl(base, `/recipes/${r.slug}`),
+        lastModified: r.updatedAt,
         changeFrequency: "monthly" as const,
         priority: 0.7,
         ...(photo ? { images: [absoluteUrl(base, photo)] } : {}),

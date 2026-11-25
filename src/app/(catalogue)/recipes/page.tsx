@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
-import { OPEN_GRAPH_BASE } from "@/lib/seo";
+import { OPEN_GRAPH_BASE, recipeListJsonLd } from "@/lib/seo";
+import { JsonLd } from "@/components/seo/json-ld";
+import { siteUrl } from "@/server/modules/seo/queries";
 import Link from "next/link";
 import { Suspense } from "react";
 import { RecipeCard } from "@/components/recipes/recipe-card";
@@ -17,6 +19,8 @@ import {
 } from "@/server/modules/recipes/queries";
 
 const TITLE = "Recettes du quotidien, chiffrées et détaillées";
+const OG_ALT =
+  "Marmy, la cuisine du quotidien bien pensée : recettes, menus, courses et garde-manger.";
 const DESCRIPTION =
   "Plus de 500 recettes faciles du quotidien : temps, coût par part, protéines, ingrédients et étapes. Filtre par durée, régime, saison ou budget, gratuitement.";
 
@@ -24,7 +28,14 @@ export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
   alternates: { canonical: "/recipes" },
-  openGraph: { ...OPEN_GRAPH_BASE, url: "/recipes", title: TITLE, description: DESCRIPTION },
+  openGraph: {
+    ...OPEN_GRAPH_BASE,
+    url: "/recipes",
+    title: TITLE,
+    description: DESCRIPTION,
+    // Une page qui précise son Open Graph perd l'image du site : on la redonne.
+    images: [{ url: "/opengraph-image.jpg", width: 1200, height: 630, alt: OG_ALT }],
+  },
 };
 export const maxDuration = 30;
 
@@ -172,6 +183,15 @@ async function Catalog({ searchParams }: Pick<PageProps<"/recipes">, "searchPara
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Catalogue complet tel que les moteurs le voient : liste des recettes, liens directs. */}
+      {catalog.guest && !anyFilter && catalog.cards.length > 0 && (
+        <JsonLd
+          data={recipeListJsonLd(
+            siteUrl(),
+            catalog.cards.map((c) => ({ slug: c.slug, title: c.title })),
+          )}
+        />
+      )}
       {/* Formulaire GET : fonctionne sans JavaScript, l'URL garde les filtres. */}
       <form action="/recipes" className="flex flex-col gap-3" role="search">
         <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 md:grid-cols-[minmax(0,1fr)_11rem_11rem_auto]">

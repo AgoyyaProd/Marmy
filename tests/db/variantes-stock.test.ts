@@ -215,3 +215,25 @@ describe("poisson pané", () => {
     ]);
   });
 });
+
+/** 0103 : dates des recettes lisibles sans compte, pas l'auteur de la validation. */
+describe("catalogue public : dates des recettes", () => {
+  it("un visiteur lit les dates, pas validated_by", async () => {
+    const client = await pool.connect();
+    try {
+      await client.query("begin");
+      await client.query("set local role anon");
+      const { rows } = await client.query(
+        `select created_at, updated_at, validated_at from public.recipes
+         where status = 'published' limit 1`,
+      );
+      expect(rows[0].updated_at).toBeInstanceOf(Date);
+      await expect(
+        client.query("select validated_by from public.recipes limit 1"),
+      ).rejects.toMatchObject({ code: "42501" });
+    } finally {
+      await client.query("rollback");
+      client.release();
+    }
+  });
+});

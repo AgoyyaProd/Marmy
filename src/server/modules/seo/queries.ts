@@ -12,7 +12,7 @@ export function siteUrl(): string {
 }
 
 /** Recettes publiées, pour le plan du site. Lecture anonyme, en cache une heure. */
-export async function listPublicRecipes(): Promise<{ slug: string }[]> {
+export async function listPublicRecipes(): Promise<{ slug: string; updatedAt: string }[]> {
   "use cache";
   cacheLife("hours");
   const supabase = createSupabasePublicClient();
@@ -20,13 +20,13 @@ export async function listPublicRecipes(): Promise<{ slug: string }[]> {
     (from, to) =>
       supabase
         .from("recipes")
-        .select("slug")
+        .select("slug, updated_at")
         .eq("status", "published")
         .order("slug")
         .range(from, to),
     "des recettes publiées",
   );
-  return rows.map((r) => ({ slug: r.slug }));
+  return rows.map((r) => ({ slug: r.slug, updatedAt: r.updated_at }));
 }
 
 export interface RecipeSeo {
